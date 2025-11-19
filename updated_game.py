@@ -7,11 +7,14 @@ import time
 import random
 
 delay = 0.1
+double_cooldown = 0
 
 # Score
 score = 0
 high_score = 0
-
+# Cooldown timer for double points power-up
+if double_cooldown > 0:
+    double_cooldown -= 1
 # Set up the screen
 wn = turtle.Screen()
 wn.title("Snake Game by @TokyoEdTech")
@@ -150,8 +153,8 @@ while True:
                   align="center", font=("Courier", 24, "normal"))
 
         # --- Randomly respawn double points ---
-        if not double_points.active and random.random() < 0.10:
-            x = random.randint(-290, 290)
+if (not double_points.active) and double_cooldown <= 0 and random.random() < 0.01:
+    x = random.randint(-290, 290)
             y = random.randint(-290, 290)
             double_points.goto(x, y)
             double_points.active = True
@@ -164,7 +167,8 @@ while True:
 
         # Turn off after 10 seconds
         wn.ontimer(end_double, 10000)
-
+    double_cooldown = 300  # frames (~3 seconds)
+    
     # Move the end segments first in reverse order
     for index in range(len(segments)-1, 0, -1):
         x = segments[index-1].xcor()
