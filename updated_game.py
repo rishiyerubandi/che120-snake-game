@@ -563,17 +563,12 @@ btn_w = 220
 btn_h = 60
 center_x = 0
 
-play_btn = RoundedButton(center_x, 40, btn_w, btn_h, fill_color="blue", border_color="black",
-                         text="PLAY", text_color="white")
-options_btn = RoundedButton(center_x, -40, btn_w, btn_h, fill_color="red", border_color="black",
-                            text="OPTIONS", text_color="white")
+play_btn = RoundedButton(center_x, 40, btn_w, btn_h, fill_color="blue", border_color="black", text="PLAY", text_color="white")
+options_btn = RoundedButton(center_x, -40, btn_w, btn_h, fill_color="red", border_color="black", text="OPTIONS", text_color="white")
 
-normal_btn = RoundedButton(center_x, 60, btn_w, btn_h, fill_color="purple", border_color="black",
-                           text="NORMAL MODE", text_color="white")
-modified_btn = RoundedButton(center_x, 0, btn_w, btn_h, fill_color="purple", border_color="black",
-                             text="MODIFIED MODE", text_color="white")
-back_btn = RoundedButton(center_x, -80, btn_w, btn_h, fill_color="orange", border_color="black",
-                         text="BACK", text_color="white")
+normal_btn = RoundedButton(center_x, 60, btn_w, btn_h, fill_color="purple", border_color="black", text="NORMAL MODE", text_color="white")
+modified_btn = RoundedButton(center_x, 0, btn_w, btn_h, fill_color="purple", border_color="black", text="MODIFIED MODE", text_color="white")
+back_btn = RoundedButton(center_x, -80, btn_w, btn_h, fill_color="orange", border_color="black", text="BACK", text_color="white")
 
 current_buttons = []
 
