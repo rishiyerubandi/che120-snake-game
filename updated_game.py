@@ -6,43 +6,498 @@ import turtle
 import time
 import random
 
-# ----------------------------
-# Configuration / Globals
-# ----------------------------
+
 WINDOW_WIDTH = 600
 WINDOW_HEIGHT = 600
 BUTTON_CORNER_RADIUS = 12
 BUTTON_PADDING = 10
 
-# gameplay timing
 delay = 0.1
 
-# scoring
+double_cooldown = 0
+reverse_cooldown = 0
+phantom_cooldown = 0
+shield_cooldown = 0
+pointloss_cooldown = 0
+
 score = 0
 high_score = 0
 
-# UI / state
-game_state = "menu"   # "menu", "options", "playing"
-selected_mode = "normal"  # "normal" or "modified"
-running_game = False  # controls the main game loop
+shield_respawning = False
 
-# Modified mode power-up state
+game_state = "menu"
+selected_mode = "normal"
+running_game = False
+
 double_active = False
 double_remaining = 0
-powerup_cooldown = 0  # frames until powerup may respawn
+powerup_cooldown = 0
 
-# ----------------------------
-# Screen setup
-# ----------------------------
+double_mode = False
+reverse_mode = False
+phantom_mode = False
+shield_mode = False
+
+
+def random_grid_pos():
+    x = random.randrange(-14, 15) * 20
+    y = random.randrange(-14, 15) * 20
+    return x, y
+
+
+def safe_spawn(occupied_positions):
+    for _ in range(500):
+        pos = random_grid_pos()
+        if pos not in occupied_positions:
+            return pos
+    return random_grid_pos()
+
+
+shield_shape = (
+    (0,25),
+    (12,18),
+    (18,4),
+    (14,-18),
+    (0,-25),
+    (-14,-18),
+    (-18,4),
+    (-12,18)
+)
+
 wn = turtle.Screen()
-wn.title("Snake Game by @TokyoEdTech")
+wn.title("Snake Game by @TokyoEdTech (Merged)")
 wn.bgcolor("green")
 wn.setup(width=WINDOW_WIDTH, height=WINDOW_HEIGHT)
 wn.tracer(0)
 
-# ----------------------------
-# Utility: Rounded Rectangle Button Class
-# ----------------------------
+turtle.register_shape("shield_icon", shield_shape)
+
+head = turtle.Turtle()
+head.speed(0)
+head.shape("square")
+head.color("black")
+head.penup()
+head.goto(0,0)
+head.direction = "stop"
+
+food = turtle.Turtle()
+food.speed(0)
+food.shape("circle")
+food.color("red")
+food.penup()
+food.goto(0,100)
+
+double_points = turtle.Turtle()
+double_points.speed(0)
+double_points.shape("circle")
+double_points.color("yellow")
+double_points.penup()
+double_points.goto(1000, 1000)
+double_points.active = False
+double_points.hideturtle()
+
+reverse_token = turtle.Turtle()
+reverse_token.speed(0)
+reverse_token.shape("circle")
+reverse_token.color("blue")
+reverse_token.penup()
+reverse_token.goto(1000, 1000)
+reverse_token.active = False
+reverse_token.hideturtle()
+
+phantom_token = turtle.Turtle()
+phantom_token.speed(0)
+phantom_token.shape("circle")
+phantom_token.color("blue")
+phantom_token.penup()
+phantom_token.goto(1000, 1000)
+phantom_token.active = False
+phantom_token.hideturtle()
+
+shield_token = turtle.Turtle()
+shield_token.speed(0)
+shield_token.shape("shield_icon")
+shield_token.color("white")
+shield_token.penup()
+shield_token.goto(1000, 1000)
+shield_token.active = False
+shield_token.hideturtle()
+
+point_loss_token = turtle.Turtle()
+point_loss_token.speed(0)
+point_loss_token.shape("circle")
+point_loss_token.color("yellow")
+point_loss_token.penup()
+point_loss_token.goto(1000, 1000)
+point_loss_token.active = False
+point_loss_token.hideturtle()
+
+segments = []
+
+pen = turtle.Turtle()
+pen.speed(0)
+pen.shape("square")
+pen.color("white")
+pen.penup()
+pen.hideturtle()
+pen.goto(0, 260)
+pen.write("Score: 0  High Score: 0", align="center", font=("Courier", 24, "normal"))
+
+
+def go_up():
+    global reverse_mode
+    if not reverse_mode:
+        if head.direction != "down":
+            head.direction = "up"
+    else:
+        if head.direction != "up":
+            head.direction = "down"
+
+
+def go_down():
+    global reverse_mode
+    if not reverse_mode:
+        if head.direction != "up":
+            head.direction = "down"
+    else:
+        if head.direction != "down":
+            head.direction = "up"
+
+
+def go_left():
+    global reverse_mode
+    if not reverse_mode:
+        if head.direction != "right":
+            head.direction = "left"
+    else:
+        if head.direction != "left":
+            head.direction = "right"
+
+
+def go_right():
+    global reverse_mode
+    if not reverse_mode:
+        if head.direction != "left":
+            head.direction = "right"
+    else:
+        if head.direction != "right":
+            head.direction = "left"
+
+
+def move():
+    if head.direction == "up":
+        head.sety(head.ycor() + 20)
+    if head.direction == "down":
+        head.sety(head.ycor() - 20)
+    if head.direction == "left":
+        head.setx(head.xcor() - 20)
+    if head.direction == "right":
+        head.setx(head.xcor() + 20)
+
+    x, y = head.xcor(), head.ycor()
+    if phantom_mode:
+        if x > 290:
+            head.setx(-280)
+        if x < -290:
+            head.setx(280)
+        if y > 290:
+            head.sety(-280)
+        if y < -290:
+            head.sety(280)
+
+
+def end_double():
+    global double_mode
+    double_mode = False
+
+
+def end_reverse():
+    global reverse_mode
+    reverse_mode = False
+
+
+def end_phantom():
+    global phantom_mode
+    phantom_mode = False
+
+
+def end_shield():
+    global shield_mode
+    shield_mode = False
+
+
+wn.listen()
+wn.onkeypress(go_up, "w")
+wn.onkeypress(go_down, "s")
+wn.onkeypress(go_left, "a")
+wn.onkeypress(go_right, "d")
+
+
+def hide_all_powerups():
+    double_points.goto(1000,1000); double_points.hideturtle(); double_points.active = False
+    reverse_token.goto(1000,1000); reverse_token.hideturtle(); reverse_token.active = False
+    phantom_token.goto(1000,1000); phantom_token.hideturtle(); phantom_token.active = False
+    shield_token.goto(1000,1000); shield_token.hideturtle(); shield_token.active = False
+    point_loss_token.goto(1000,1000); point_loss_token.hideturtle(); point_loss_token.active = False
+
+
+hide_all_powerups()
+
+
+def run_game_loop(mode="normal"):
+    global delay, double_cooldown, reverse_cooldown, phantom_cooldown, shield_cooldown, pointloss_cooldown
+    global score, high_score, segments, double_mode, reverse_mode, phantom_mode, shield_mode, shield_respawning
+    global running_game, double_active, double_remaining, powerup_cooldown
+
+    running_game = True
+
+    while running_game:
+        wn.update()
+
+        if shield_respawning:
+            shield_respawning = False
+
+        if double_cooldown > 0:
+            double_cooldown -= 1
+        if reverse_cooldown > 0:
+            reverse_cooldown -= 1
+        if phantom_cooldown > 0:
+            phantom_cooldown -= 1
+        if shield_cooldown > 0:
+            shield_cooldown -= 1
+        if pointloss_cooldown > 0:
+            pointloss_cooldown -= 1
+
+        simul = (score >= 200)
+
+        occupied = set()
+        occupied.add((round(head.xcor()), round(head.ycor())))
+        for s in segments:
+            occupied.add((round(s.xcor()), round(s.ycor())))
+        occupied.add((round(food.xcor()), round(food.ycor())))
+        if double_points.active:
+            occupied.add((round(double_points.xcor()), round(double_points.ycor())))
+        if reverse_token.active:
+            occupied.add((round(reverse_token.xcor()), round(reverse_token.ycor())))
+        if phantom_token.active:
+            occupied.add((round(phantom_token.xcor()), round(phantom_token.ycor())))
+        if shield_token.active:
+            occupied.add((round(shield_token.xcor()), round(shield_token.ycor())))
+        if point_loss_token.active:
+            occupied.add((round(point_loss_token.xcor()), round(point_loss_token.ycor())))
+
+        if (simul or (not double_points.active)) and double_cooldown <= 0 and random.random() < 0.01:
+            x,y = safe_spawn(occupied)
+            double_points.goto(x,y)
+            double_points.showturtle()
+            double_points.active = True
+            occupied.add((x,y))
+
+        if (simul or (not reverse_token.active)) and reverse_cooldown <= 0 and random.random() < 0.01:
+            x,y = safe_spawn(occupied)
+            reverse_token.goto(x,y)
+            reverse_token.showturtle()
+            reverse_token.active = True
+            occupied.add((x,y))
+
+        if (simul or (not phantom_token.active)) and phantom_cooldown <= 0 and random.random() < 0.01:
+            x,y = safe_spawn(occupied)
+            phantom_token.goto(x,y)
+            phantom_token.showturtle()
+            phantom_token.active = True
+            occupied.add((x,y))
+
+        if (simul or (not shield_token.active)) and shield_cooldown <= 0 and random.random() < 0.01:
+            x,y = safe_spawn(occupied)
+            shield_token.goto(x,y)
+            shield_token.showturtle()
+            shield_token.active = True
+            occupied.add((x,y))
+
+        if (simul or (not point_loss_token.active)) and pointloss_cooldown <= 0 and random.random() < 0.01:
+            x,y = safe_spawn(occupied)
+            point_loss_token.goto(x,y)
+            point_loss_token.showturtle()
+            point_loss_token.active = True
+            occupied.add((x,y))
+
+        if not phantom_mode and (head.xcor() > 290 or head.xcor() < -290 or head.ycor() > 290 or head.ycor() < -290):
+            if shield_mode:
+                shield_mode = False
+                shield_respawning = True
+
+                head.goto(0, 0)
+                head.direction = "stop"
+
+                for i, seg in enumerate(segments):
+                    seg.goto(head.xcor(), head.ycor() - 20 * (i + 1))
+
+                hide_all_powerups()
+                time.sleep(0.1)
+                continue
+            else:
+                time.sleep(1)
+                head.goto(0,0)
+                head.direction = "stop"
+                for segment in segments:
+                    segment.goto(1000,1000)
+                segments.clear()
+                score = 0
+                delay = 0.1
+                double_mode = False
+                reverse_mode = False
+                phantom_mode = False
+                shield_mode = False
+                hide_all_powerups()
+                double_cooldown = reverse_cooldown = phantom_cooldown = shield_cooldown = pointloss_cooldown = 0
+                running_game = False
+                pen.clear()
+                pen.write("Score: {}  High Score: {}".format(score, high_score),
+                          align="center", font=("Courier", 24, "normal"))
+                break
+
+        if head.distance(food) < 20:
+            occ2 = set()
+            occ2.add((round(head.xcor()), round(head.ycor())))
+            for s in segments:
+                occ2.add((round(s.xcor()), round(s.ycor())))
+            if double_points.active:
+                occ2.add((round(double_points.xcor()), round(double_points.ycor())))
+            if reverse_token.active:
+                occ2.add((round(reverse_token.xcor()), round(reverse_token.ycor())))
+            if phantom_token.active:
+                occ2.add((round(phantom_token.xcor()), round(phantom_token.ycor())))
+            if shield_token.active:
+                occ2.add((round(shield_token.xcor()), round(shield_token.ycor())))
+            if point_loss_token.active:
+                occ2.add((round(point_loss_token.xcor()), round(point_loss_token.ycor())))
+
+            fx, fy = safe_spawn(occ2)
+            food.goto(fx, fy)
+
+            new_segment = turtle.Turtle()
+            new_segment.speed(0)
+            new_segment.shape("square")
+            new_segment.color("grey")
+            new_segment.penup()
+            new_segment.goto(1000, 1000)
+            segments.append(new_segment)
+
+            delay -= 0.001
+
+            if double_mode:
+                score += 20
+            else:
+                score += 10
+
+            if score > high_score:
+                high_score = score
+
+            pen.clear()
+            pen.write("Score: {}  High Score: {}".format(score, high_score),
+                      align="center", font=("Courier", 24, "normal"))
+
+        if double_points.active and head.distance(double_points) < 20:
+            double_points.goto(1000,1000)
+            double_points.hideturtle()
+            double_points.active = False
+            double_mode = True
+            double_cooldown = 300
+            wn.ontimer(end_double, 10000)
+
+        if reverse_token.active and head.distance(reverse_token) < 20:
+            reverse_token.goto(1000,1000)
+            reverse_token.hideturtle()
+            reverse_token.active = False
+            reverse_mode = True
+            reverse_cooldown = 300
+            wn.ontimer(end_reverse, 8000)
+
+        if phantom_token.active and head.distance(phantom_token) < 20:
+            phantom_token.goto(1000,1000)
+            phantom_token.hideturtle()
+            phantom_token.active = False
+            phantom_mode = True
+            phantom_cooldown = 300
+            wn.ontimer(end_phantom, 8000)
+
+        if shield_token.active and head.distance(shield_token) < 20:
+            shield_token.goto(1000,1000)
+            shield_token.hideturtle()
+            shield_token.active = False
+            shield_mode = True
+            shield_cooldown = 300
+            wn.ontimer(end_shield, 12000)
+
+        if point_loss_token.active and head.distance(point_loss_token) < 20:
+            point_loss_token.goto(1000,1000)
+            point_loss_token.hideturtle()
+            point_loss_token.active = False
+            score = max(0, score - 30)
+            pointloss_cooldown = 300
+            pen.clear()
+            pen.write("Score: {}  High Score: {}".format(score, high_score),
+                      align="center", font=("Courier", 24, "normal"))
+
+        for index in range(len(segments)-1, 0, -1):
+            x = segments[index-1].xcor()
+            y = segments[index-1].ycor()
+            segments[index].goto(x, y)
+
+        if len(segments) > 0:
+            segments[0].goto(head.xcor(), head.ycor())
+
+        move()
+
+        collided = False
+        for segment in segments:
+            if segment.distance(head) < 20:
+                collided = True
+                if phantom_mode:
+                    collided = False
+                    break
+                if shield_mode:
+                    shield_mode = False
+                    shield_respawning = True
+
+                    head.goto(0, 0)
+                    head.direction = "stop"
+
+                    for i, seg in enumerate(segments):
+                        seg.goto(head.xcor(), head.ycor() - 20 * (i + 1))
+
+                    hide_all_powerups()
+                    time.sleep(0.1)
+                    collided = False
+                    break
+                time.sleep(1)
+                head.goto(0,0)
+                head.direction = "stop"
+                for segment in segments:
+                    segment.goto(1000,1000)
+                segments.clear()
+                score = 0
+                delay = 0.1
+                double_mode = False
+                reverse_mode = False
+                phantom_mode = False
+                shield_mode = False
+                hide_all_powerups()
+                double_cooldown = reverse_cooldown = phantom_cooldown = shield_cooldown = pointloss_cooldown = 0
+                pen.clear()
+                pen.write("Score: {}  High Score: {}".format(score, high_score),
+                          align="center", font=("Courier", 24, "normal"))
+                running_game = False
+                break
+
+        time.sleep(delay)
+
+    running_game = False
+    return
+
+
+# Main Menu
+
 class RoundedButton:
     def __init__(self, x, y, w, h, fill_color, border_color, text, text_color="white", action=None):
         self.x = x
@@ -85,7 +540,6 @@ class RoundedButton:
         d.penup()
 
     def draw(self):
-        # draw only if not visible (prevents overdraw flicker)
         self.drawer.clear()
         self._draw_round_rect()
         self.drawer.goto(self.x, self.y - 10)
@@ -104,20 +558,16 @@ class RoundedButton:
         if self.action:
             self.action()
 
-# ----------------------------
-# Define menu buttons (positions)
-# ----------------------------
+
 btn_w = 220
 btn_h = 60
 center_x = 0
 
-# Main menu
 play_btn = RoundedButton(center_x, 40, btn_w, btn_h, fill_color="blue", border_color="black",
                          text="PLAY", text_color="white")
 options_btn = RoundedButton(center_x, -40, btn_w, btn_h, fill_color="red", border_color="black",
                             text="OPTIONS", text_color="white")
 
-# Options menu
 normal_btn = RoundedButton(center_x, 60, btn_w, btn_h, fill_color="purple", border_color="black",
                            text="NORMAL MODE", text_color="white")
 modified_btn = RoundedButton(center_x, 0, btn_w, btn_h, fill_color="purple", border_color="black",
@@ -127,59 +577,26 @@ back_btn = RoundedButton(center_x, -80, btn_w, btn_h, fill_color="orange", borde
 
 current_buttons = []
 
-# ----------------------------
-# Title / menu helper turtle
-# ----------------------------
 title_turtle = turtle.Turtle(visible=False)
 title_turtle.hideturtle()
 title_turtle.penup()
 title_turtle.color("white")
 
-# ----------------------------
-# Game objects (created/stored, hidden until play)
-# ----------------------------
-# Snake head
-head = turtle.Turtle()
 head.hideturtle()
-head.speed(0)
-head.shape("square")
-head.color("black")
-head.penup()
-head.goto(0, 0)
-head.direction = "stop"
-
-# Food
-food = turtle.Turtle()
 food.hideturtle()
-food.speed(0)
-food.shape("circle")
-food.color("red")
-food.penup()
-food.goto(0, 100)
-
-# Powerup (double points)
-powerup = turtle.Turtle()
-powerup.hideturtle()
-powerup.speed(0)
-powerup.shape("circle")
-powerup.color("yellow")
-powerup.penup()
-powerup.goto(1000, 1000)
-
-# Body segments
-segments = []
-
-# Score pen
-pen = turtle.Turtle()
+double_points.hideturtle()
+double_points.goto(1000,1000)
+reverse_token.hideturtle()
+reverse_token.goto(1000,1000)
+phantom_token.hideturtle()
+phantom_token.goto(1000,1000)
+shield_token.hideturtle()
+shield_token.goto(1000,1000)
+point_loss_token.hideturtle()
+point_loss_token.goto(1000,1000)
 pen.hideturtle()
-pen.penup()
-pen.speed(0)
-pen.color("white")
-pen.goto(0, 260)
 
-# ----------------------------
-# Menu display functions
-# ----------------------------
+
 def show_main_menu():
     global game_state, current_buttons
     game_state = "menu"
@@ -194,6 +611,7 @@ def show_main_menu():
     back_btn.hide()
     current_buttons = [play_btn, options_btn]
 
+
 def show_options_menu():
     global game_state, current_buttons
     game_state = "options"
@@ -207,18 +625,21 @@ def show_options_menu():
     back_btn.draw()
     current_buttons = [normal_btn, modified_btn, back_btn]
 
+
 def hide_game_elements_for_menu():
     head.hideturtle()
     food.hideturtle()
-    powerup.hideturtle()
+    double_points.hideturtle()
+    reverse_token.hideturtle()
+    phantom_token.hideturtle()
+    shield_token.hideturtle()
+    point_loss_token.hideturtle()
     pen.clear()
+    pen.hideturtle()
 
-# ----------------------------
-# Game setup / reset helpers
-# ----------------------------
+
 def setup_game():
-    global segments, score, delay, double_active, double_remaining, powerup_cooldown, running_game
-    # show game items
+    global segments, score, delay, double_active, double_remaining, powerup_cooldown, running_game, double_mode
     head.showturtle()
     head.goto(0, 0)
     head.direction = "stop"
@@ -226,27 +647,31 @@ def setup_game():
     food.showturtle()
     food.goto(0, 100)
 
-    powerup.hideturtle()
-    powerup.goto(1000, 1000)
+    double_points.hideturtle(); double_points.goto(1000,1000); double_points.active=False
+    reverse_token.hideturtle(); reverse_token.goto(1000,1000); reverse_token.active=False
+    phantom_token.hideturtle(); phantom_token.goto(1000,1000); phantom_token.active=False
+    shield_token.hideturtle(); shield_token.goto(1000,1000); shield_token.active=False
+    point_loss_token.hideturtle(); point_loss_token.goto(1000,1000); point_loss_token.active=False
 
-    # clear segments
     for s in segments:
         s.hideturtle()
         s.goto(1000, 1000)
     segments = []
 
-    # reset game vars
     score = 0
     delay = 0.1
     double_active = False
+    double_mode = False
     double_remaining = 0
     powerup_cooldown = 0
 
+    pen.showturtle()
     update_score_display()
     running_game = True
 
+
 def reset_game_and_return_to_menu():
-    global segments, score, delay, double_active, double_remaining, powerup_cooldown, running_game
+    global segments, score, delay, double_active, double_remaining, powerup_cooldown, running_game, double_mode
     time.sleep(1)
     head.goto(0, 0)
     head.direction = "stop"
@@ -257,63 +682,36 @@ def reset_game_and_return_to_menu():
     score = 0
     delay = 0.1
     double_active = False
+    double_mode = False
     double_remaining = 0
     powerup_cooldown = 0
     running_game = False
     update_score_display()
     show_main_menu()
 
+
 def update_score_display():
     pen.clear()
     pen.write(f"Score: {score}  High Score: {high_score}", align="center", font=("Courier", 24, "normal"))
 
-# ----------------------------
-# Movement functions & bindings
-# ----------------------------
-def go_up():
-    if head.direction != "down":
-        head.direction = "up"
 
-def go_down():
-    if head.direction != "up":
-        head.direction = "down"
-
-def go_left():
-    if head.direction != "right":
-        head.direction = "left"
-
-def go_right():
-    if head.direction != "left":
-        head.direction = "right"
-
-def move_head():
-    if head.direction == "up":
-        head.sety(head.ycor() + 20)
-    if head.direction == "down":
-        head.sety(head.ycor() - 20)
-    if head.direction == "left":
-        head.setx(head.xcor() - 20)
-    if head.direction == "right":
-        head.setx(head.xcor() + 20)
-
-wn.listen()
 wn.onkeypress(go_up, "w")
 wn.onkeypress(go_down, "s")
 wn.onkeypress(go_left, "a")
 wn.onkeypress(go_right, "d")
 
-# ----------------------------
-# Button actions
-# ----------------------------
+
 def play_action():
-    # Start the game in the currently selected mode
     start_playing()
+
 
 def options_action():
     show_options_menu()
 
+
 play_btn.action = play_action
 options_btn.action = options_action
+
 
 def select_normal():
     global selected_mode
@@ -323,6 +721,7 @@ def select_normal():
     normal_btn.draw()
     modified_btn.draw()
 
+
 def select_modified():
     global selected_mode
     selected_mode = "modified"
@@ -331,139 +730,39 @@ def select_modified():
     normal_btn.draw()
     modified_btn.draw()
 
+
 def back_action():
-    # clear selection ticks (keeps label simple)
     normal_btn.text = "NORMAL MODE"
     modified_btn.text = "MODIFIED MODE"
     show_main_menu()
+
 
 normal_btn.action = select_normal
 modified_btn.action = select_modified
 back_btn.action = back_action
 
-# ----------------------------
-# Mouse click handler
-# ----------------------------
+
 def on_screen_click(x, y):
-    # If in menu / options, check button clicks
     if game_state in ("menu", "options"):
         for b in current_buttons:
             if b.contains(x, y):
                 b.click()
                 return
-    # If playing, ignore clicks (could be used for pause later)
+
 
 wn.onscreenclick(on_screen_click)
 
-# ----------------------------
-# Game loop (classic loop) and start/stop
-# ----------------------------
+
 def start_playing():
     global game_state
     game_state = "playing"
-    # hide menu UI
     for b in (play_btn, options_btn, normal_btn, modified_btn, back_btn):
         b.hide()
     title_turtle.clear()
     setup_game()
-    run_game_loop()
+    run_game_loop(mode=selected_mode)
+    show_main_menu()
 
-def run_game_loop():
-    global score, high_score, delay, double_active, double_remaining, powerup_cooldown, running_game
 
-    # ensure controls are active
-    wn.onkeypress(go_up, "w")
-    wn.onkeypress(go_down, "s")
-    wn.onkeypress(go_left, "a")
-    wn.onkeypress(go_right, "d")
-
-    while running_game:
-        wn.update()
-
-        # Border collision -> end run and return to menu
-        if head.xcor() > (WINDOW_WIDTH//2 - 10) or head.xcor() < -(WINDOW_WIDTH//2 - 10) or \
-           head.ycor() > (WINDOW_HEIGHT//2 - 10) or head.ycor() < -(WINDOW_HEIGHT//2 - 10):
-            reset_game_and_return_to_menu()
-            break
-
-        # Food collision
-        if head.distance(food) < 20:
-            # move food
-            x = random.randint(-WINDOW_WIDTH//2 + 20, WINDOW_WIDTH//2 - 20)
-            y = random.randint(-WINDOW_HEIGHT//2 + 20, WINDOW_HEIGHT//2 - 20)
-            food.goto(x, y)
-
-            # add a segment
-            new_segment = turtle.Turtle()
-            new_segment.hideturtle()
-            new_segment.speed(0)
-            new_segment.shape("square")
-            new_segment.color("grey")
-            new_segment.penup()
-            segments.append(new_segment)
-            new_segment.showturtle()
-
-            # speed up slightly but keep reasonable floor
-            delay = max(0.02, globals().get('delay', 0.1) - 0.001)
-            globals()['delay'] = delay
-
-            # scoring logic
-            if selected_mode == "modified" and double_active:
-                score += 20
-                double_remaining -= 1
-                if double_remaining <= 0:
-                    double_active = False
-            else:
-                score += 10
-
-            if score > high_score:
-                high_score = score
-
-            update_score_display()
-
-        # Modified mode: powerup spawn logic
-        if selected_mode == "modified":
-            if powerup_cooldown > 0:
-                powerup_cooldown -= 1
-            else:
-                # if powerup hidden, small chance to spawn
-                if powerup.distance(1000, 1000) < 0.1:
-                    if random.random() < 0.01:
-                        px = random.randint(-WINDOW_WIDTH//2 + 40, WINDOW_WIDTH//2 - 40)
-                        py = random.randint(-WINDOW_HEIGHT//2 + 40, WINDOW_HEIGHT//2 - 40)
-                        powerup.goto(px, py)
-                        powerup.showturtle()
-
-        # Powerup pickup
-        if selected_mode == "modified" and powerup.distance(head) < 20:
-            powerup.hideturtle()
-            powerup.goto(1000, 1000)
-            double_active = True
-            double_remaining = 5
-            powerup_cooldown = 300
-
-        # Move segments
-        for index in range(len(segments) - 1, 0, -1):
-            x = segments[index - 1].xcor()
-            y = segments[index - 1].ycor()
-            segments[index].goto(x, y)
-
-        if len(segments) > 0:
-            segments[0].goto(head.xcor(), head.ycor())
-
-        move_head()
-
-        # Body collision detection
-        for segment in segments:
-            if segment.distance(head) < 20:
-                reset_game_and_return_to_menu()
-                running_game = False
-                break
-
-        time.sleep(delay)
-
-# ----------------------------
-# Start the program by showing main menu
-# ----------------------------
 show_main_menu()
 wn.mainloop()
