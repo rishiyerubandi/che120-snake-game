@@ -22,6 +22,7 @@ pointloss_cooldown = 0
 
 score = 0
 high_score = 0
+check = 0
 
 shield_respawning = False
 
@@ -37,6 +38,7 @@ double_mode = False
 reverse_mode = False
 phantom_mode = False
 shield_mode = False
+reset_seg = False
 
 
 def random_grid_pos():
@@ -247,26 +249,16 @@ hide_all_powerups()
 def run_game_loop(mode="normal"):
     global delay, double_cooldown, reverse_cooldown, phantom_cooldown, shield_cooldown, pointloss_cooldown
     global score, high_score, segments, double_mode, reverse_mode, phantom_mode, shield_mode, shield_respawning
-    global running_game, double_active, double_remaining, powerup_cooldown
+    global running_game, double_active, double_remaining, powerup_cooldown, check
 
     running_game = True
 
     while running_game:
         wn.update()
 
-        if shield_respawning:
-            shield_respawning = False
-
-        if double_cooldown > 0:
-            double_cooldown -= 1
-        if reverse_cooldown > 0:
-            reverse_cooldown -= 1
-        if phantom_cooldown > 0:
-            phantom_cooldown -= 1
-        if shield_cooldown > 0:
-            shield_cooldown -= 1
-        if pointloss_cooldown > 0:
-            pointloss_cooldown -= 1
+        for cd in ["double_cooldown", "reverse_cooldown", "phantom_cooldown", "shield_cooldown", "pointloss_cooldown"]:
+            if globals()[cd] > 0:
+                globals()[cd] -= 1
 
         simul = (score >= 200)
 
@@ -323,17 +315,17 @@ def run_game_loop(mode="normal"):
 
         if not phantom_mode and (head.xcor() > 290 or head.xcor() < -290 or head.ycor() > 290 or head.ycor() < -290):
             if shield_mode:
-                shield_mode = False
+                #shield_mode = False
                 shield_respawning = True
-
-                head.goto(0, 0)
+                head.goto(0,0)
                 head.direction = "stop"
-
                 for i, seg in enumerate(segments):
-                    seg.goto(head.xcor(), head.ycor() - 20 * (i + 1))
-
+                    seg.goto(head.xcor(), head.ycor() - 20 * (i+1))
                 hide_all_powerups()
-                time.sleep(0.1)
+                for _ in range(3):
+                    head.hideturtle(); wn.update(); time.sleep(0.1)
+                    head.showturtle(); wn.update(); time.sleep(0.1)
+                running_game = True
                 continue
             else:
                 time.sleep(1)
@@ -342,36 +334,18 @@ def run_game_loop(mode="normal"):
                 for segment in segments:
                     segment.goto(1000,1000)
                 segments.clear()
-                score = 0
                 delay = 0.1
-                double_mode = False
-                reverse_mode = False
-                phantom_mode = False
-                shield_mode = False
+                double_mode = reverse_mode = phantom_mode = False
                 hide_all_powerups()
                 double_cooldown = reverse_cooldown = phantom_cooldown = shield_cooldown = pointloss_cooldown = 0
-                running_game = False
                 pen.clear()
                 pen.write("Score: {}  High Score: {}".format(score, high_score),
                           align="center", font=("Courier", 24, "normal"))
+                running_game = False
                 break
 
         if head.distance(food) < 20:
-            occ2 = set()
-            occ2.add((round(head.xcor()), round(head.ycor())))
-            for s in segments:
-                occ2.add((round(s.xcor()), round(s.ycor())))
-            if double_points.active:
-                occ2.add((round(double_points.xcor()), round(double_points.ycor())))
-            if reverse_token.active:
-                occ2.add((round(reverse_token.xcor()), round(reverse_token.ycor())))
-            if phantom_token.active:
-                occ2.add((round(phantom_token.xcor()), round(phantom_token.ycor())))
-            if shield_token.active:
-                occ2.add((round(shield_token.xcor()), round(shield_token.ycor())))
-            if point_loss_token.active:
-                occ2.add((round(point_loss_token.xcor()), round(point_loss_token.ycor())))
-
+            occ2 = occupied.copy()
             fx, fy = safe_spawn(occ2)
             food.goto(fx, fy)
 
@@ -381,6 +355,7 @@ def run_game_loop(mode="normal"):
             new_segment.color("grey")
             new_segment.penup()
             new_segment.goto(1000, 1000)
+            
             segments.append(new_segment)
 
             delay -= 0.001
@@ -457,17 +432,17 @@ def run_game_loop(mode="normal"):
                     collided = False
                     break
                 if shield_mode:
-                    shield_mode = False
-                    shield_respawning = True
-
-                    head.goto(0, 0)
-                    head.direction = "stop"
-
+                    if check == 1:
+                        shield_mode = False
+                        shield_respawning = True
+                        reset_seg = True
+                    head.goto(0,0); head.direction = "stop"
                     for i, seg in enumerate(segments):
-                        seg.goto(head.xcor(), head.ycor() - 20 * (i + 1))
-
+                        seg.goto(head.xcor(), head.ycor() - 20 * (i+1))
                     hide_all_powerups()
-                    time.sleep(0.1)
+                    for _ in range(3):
+                        head.hideturtle(); wn.update(); time.sleep(0.1)
+                        head.showturtle(); wn.update(); time.sleep(0.1)
                     collided = False
                     break
                 time.sleep(1)
@@ -476,18 +451,14 @@ def run_game_loop(mode="normal"):
                 for segment in segments:
                     segment.goto(1000,1000)
                 segments.clear()
-                score = 0
+                if not shield_mode:
+                    score = 0
                 delay = 0.1
-                double_mode = False
-                reverse_mode = False
-                phantom_mode = False
-                shield_mode = False
+                double_mode = reverse_mode = phantom_mode = False
                 hide_all_powerups()
                 double_cooldown = reverse_cooldown = phantom_cooldown = shield_cooldown = pointloss_cooldown = 0
-                pen.clear()
-                pen.write("Score: {}  High Score: {}".format(score, high_score),
-                          align="center", font=("Courier", 24, "normal"))
-                running_game = False
+                update_score_display()
+                check += 1
                 break
 
         time.sleep(delay)
@@ -652,8 +623,8 @@ def setup_game():
         s.hideturtle()
         s.goto(1000, 1000)
     segments = []
-
-    score = 0
+    if not shield_mode:
+        score = 0
     delay = 0.1
     double_active = False
     double_mode = False
@@ -674,7 +645,8 @@ def reset_game_and_return_to_menu():
         s.hideturtle()
         s.goto(1000, 1000)
     segments = []
-    score = 0
+    if not shield_mode:
+        score = 0
     delay = 0.1
     double_active = False
     double_mode = False
