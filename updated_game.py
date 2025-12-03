@@ -285,41 +285,41 @@ def run_game_loop(mode="normal"):
             occupied.add((round(shield_token.xcor()), round(shield_token.ycor())))
         if point_loss_token.active:
             occupied.add((round(point_loss_token.xcor()), round(point_loss_token.ycor())))
-
-        if (simul or (not double_points.active)) and double_cooldown <= 0 and random.random() < 0.01:
-            x,y = safe_spawn(occupied)
-            double_points.goto(x,y)
-            double_points.showturtle()
-            double_points.active = True
-            occupied.add((x,y))
-
-        if (simul or (not reverse_token.active)) and reverse_cooldown <= 0 and random.random() < 0.01:
-            x,y = safe_spawn(occupied)
-            reverse_token.goto(x,y)
-            reverse_token.showturtle()
-            reverse_token.active = True
-            occupied.add((x,y))
-
-        if (simul or (not phantom_token.active)) and phantom_cooldown <= 0 and random.random() < 0.01:
-            x,y = safe_spawn(occupied)
-            phantom_token.goto(x,y)
-            phantom_token.showturtle()
-            phantom_token.active = True
-            occupied.add((x,y))
-
-        if (simul or (not shield_token.active)) and shield_cooldown <= 0 and random.random() < 0.01:
-            x,y = safe_spawn(occupied)
-            shield_token.goto(x,y)
-            shield_token.showturtle()
-            shield_token.active = True
-            occupied.add((x,y))
-
-        if (simul or (not point_loss_token.active)) and pointloss_cooldown <= 0 and random.random() < 0.01:
-            x,y = safe_spawn(occupied)
-            point_loss_token.goto(x,y)
-            point_loss_token.showturtle()
-            point_loss_token.active = True
-            occupied.add((x,y))
+        if selected_mode == "modified":
+            if (simul or (not double_points.active)) and double_cooldown <= 0 and random.random() < 0.01:
+                x,y = safe_spawn(occupied)
+                double_points.goto(x,y)
+                double_points.showturtle()
+                double_points.active = True
+                occupied.add((x,y))
+    
+            if (simul or (not reverse_token.active)) and reverse_cooldown <= 0 and random.random() < 0.01:
+                x,y = safe_spawn(occupied)
+                reverse_token.goto(x,y)
+                reverse_token.showturtle()
+                reverse_token.active = True
+                occupied.add((x,y))
+    
+            if (simul or (not phantom_token.active)) and phantom_cooldown <= 0 and random.random() < 0.01:
+                x,y = safe_spawn(occupied)
+                phantom_token.goto(x,y)
+                phantom_token.showturtle()
+                phantom_token.active = True
+                occupied.add((x,y))
+    
+            if (simul or (not shield_token.active)) and shield_cooldown <= 0 and random.random() < 0.01:
+                x,y = safe_spawn(occupied)
+                shield_token.goto(x,y)
+                shield_token.showturtle()
+                shield_token.active = True
+                occupied.add((x,y))
+    
+            if (simul or (not point_loss_token.active)) and pointloss_cooldown <= 0 and random.random() < 0.01:
+                x,y = safe_spawn(occupied)
+                point_loss_token.goto(x,y)
+                point_loss_token.showturtle()
+                point_loss_token.active = True
+                occupied.add((x,y))
 
         if not phantom_mode and (head.xcor() > 290 or head.xcor() < -290 or head.ycor() > 290 or head.ycor() < -290):
             if shield_mode:
