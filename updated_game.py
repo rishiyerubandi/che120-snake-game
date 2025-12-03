@@ -307,7 +307,7 @@ def run_game_loop(mode="normal"):
                 phantom_token.active = True
                 occupied.add((x,y))
     
-            if (simul or (not shield_token.active)) and shield_cooldown <= 0 and random.random() < 0.001:
+            if (simul or (not shield_token.active)) and shield_cooldown <= 0 and random.random() < 0.005:
                 x,y = safe_spawn(occupied)
                 shield_token.goto(x,y)
                 shield_token.showturtle()
